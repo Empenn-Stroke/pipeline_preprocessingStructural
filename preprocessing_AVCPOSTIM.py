@@ -97,11 +97,9 @@ def process_subject(subject_data):
     Processa i dati di un soggetto registrando T1 a MNI, quindi T2 e FLAIR a T1.
     """
     t1_path = subject_data['RawData'].get('T1')
-    t2_path = subject_data['RawData'].get('T2')
     flair_path = subject_data['RawData'].get('FLAIR')
     
     t1_mask = subject_data['Derivatives'].get('T1')
-    t2_mask = subject_data['Derivatives'].get('T2')
     flair_mask = subject_data['Derivatives'].get('FLAIR')
     
     if not t1_path:
@@ -111,41 +109,31 @@ def process_subject(subject_data):
     subject = t1_path.split("/")[2]
     anat_folder = os.path.join(OUTPUT_DIR, subject, 'anat')
     os.makedirs(anat_folder, exist_ok=True)
-    
+    # Step 1 : Skull Strip
     skull_stripped_t1 = os.path.join(anat_folder, os.path.basename(t1_path).replace('.nii.gz', '_skullstripped.nii.gz'))
     skull_strip(t1_path, skull_stripped_t1)
-
+    # Step 2 : Bias Correction
     n4_output_t1 =  skull_stripped_t1.replace('.nii.gz', '_N4.nii.gz')
     bias_correct(skull_stripped_t1, n4_output_t1)
-
+    # Step 3 : Reorient to RAS
+    # TODO
     reg_t1 = n4_output_t1.replace('.nii.gz', '_MNI.nii.gz')
+    # Step 4 : Register to MNI
     final_t1 = register_to_reference(n4_output_t1, reg_t1, MNI_TEMPLATE, t1_mask)
-    
-
-    if t2_path:
-        skull_stripped_t2 = os.path.join(anat_folder, os.path.basename(t2_path).replace('.nii.gz', '_skullstripped.nii.gz'))
-        skull_strip(t2_path, skull_stripped_t2)
         
-        n4_output_t2 = skull_stripped_t2.replace('.nii.gz', '_N4.nii.gz')
-        bias_correct(skull_stripped_t2, n4_output_t2)
-
-
-        reg_t2 = n4_output_t2.replace('.nii.gz', '_T1.nii.gz')
-        final_t2 = register_to_reference(skull_stripped_t2, reg_t2, final_t1, t2_mask)
-    
     if flair_path:
+        # If bimodal FLAIR is available, process it
+        # Step 1 : Skull Strip
         skull_stripped_flair = os.path.join(anat_folder, os.path.basename(flair_path).replace('.nii.gz', '_skullstripped.nii.gz'))
         skull_strip(flair_path, skull_stripped_flair)
-
+        # Step 2 : Bias Correction
         n4_output_flair = skull_stripped_flair.replace('.nii.gz', '_N4.nii.gz')
         bias_correct(skull_stripped_flair, n4_output_flair)
-
+        # Step 3 : Reorient to RAS
+        # TODO
+        # Step 4 : Register to T1
         reg_flair = n4_output_flair.replace('.nii.gz', '_T1.nii.gz')
         final_flair = register_to_reference(skull_stripped_flair, reg_flair, final_t1, flair_mask)
-
-
-    
-
 
 
 def find_files(base_folder, folder_type):
